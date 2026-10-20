@@ -54,6 +54,10 @@ Then open <http://localhost:8080>. Drop `.rec` files anywhere on the page, or us
 
 Rotations are stored conjugated: heading = −2·atan2(z, w). Velocity is in GTA units per 1/50 s (× 180 = km/h).
 
+## Releasing
+
+Bump the `?v=` number on the `style.css`, `rec.js`, `i18n.js` and `app.js` links in `index.html` whenever those files change: browsers keep scripts cached for hours, and the version makes them fetch the new ones.
+
 ## Tests
 
 ```bash
