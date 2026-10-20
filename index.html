@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>neufox's Rec Editor</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div id="ui">
+    <header class="topbar">
+      <div class="brand">
+        <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+          <circle cx="9" cy="9" r="7" stroke="#f97316" stroke-width="1.5"/>
+          <circle cx="9" cy="9" r="3" fill="#f97316"/>
+        </svg>
+        <span>neufox's Rec Editor</span>
+      </div>
+      <div class="controls">
+        <select id="layer-select" class="layer-select" title="Active recording"></select>
+        <div class="separator"></div>
+        <label class="btn" title="Open .rec or .csv files (or drop them anywhere)">
+          <input id="file-input" type="file" accept=".rec,.csv" multiple hidden>
+          <span>Open</span>
+        </label>
+        <button class="btn hidden" data-action="load-samples" id="btn-samples" title="Open the bundled demo recordings">Samples</button>
+        <details class="toolbar-menu" id="save-menu">
+          <summary class="btn"><span>Save<span class="long-label"> as…</span></span></summary>
+          <div class="menu-panel">
+            <button class="btn menu-btn" data-action="download-rec">Active as .rec</button>
+            <button class="btn menu-btn" data-action="download-csv">Active as .csv</button>
+            <button class="btn menu-btn" data-action="download-all">Every open recording (.rec)</button>
+          </div>
+        </details>
+        <div class="separator"></div>
+        <button class="btn icon-btn" data-action="undo" title="Undo (Ctrl+Z)">↶</button>
+        <button class="btn icon-btn" data-action="redo" title="Redo (Ctrl+Shift+Z)">↷</button>
+      </div>
+    </header>
+
+    <main id="workspace">
+      <div id="map-wrap">
+        <div id="map"></div>
+        <div id="map-hud">
+          <label class="toggle"><input id="toggle-follow" type="checkbox"> Follow</label>
+          <label class="toggle"><input id="toggle-points" type="checkbox"> Points</label>
+          <button class="btn small" data-action="fit">Fit path</button>
+        </div>
+        <div id="speed-legend"></div>
+        <div id="coords-display"></div>
+        <a id="github-link" href="https://github.com/itsneufox/neufox-rec-editor" target="_blank" rel="noopener noreferrer" title="GitHub">
+          <svg viewBox="0 0 16 16" aria-hidden="true"><path fill="currentColor" d="M8 0C3.58 0 0 3.58 0 8a8 8 0 0 0 5.47 7.59c.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.5-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.01.08-2.1 0 0 .67-.21 2.2.82A7.6 7.6 0 0 1 8 4.86c.68 0 1.37.09 2.01.26 1.53-1.04 2.2-.82 2.2-.82.44 1.09.16 1.9.08 2.1.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8 8 0 0 0 16 8c0-4.42-3.58-8-8-8Z"/></svg>
+          <span>GitHub</span>
+        </a>
+        <div id="empty-state">
+          <div class="empty-card">
+            <div class="empty-title">Drop .rec files here</div>
+            <div class="empty-sub">SA-MP / open.mp NPC recordings: driver and on-foot. Everything stays in your browser.</div>
+            <div class="empty-actions">
+              <label class="btn primary"><input id="file-input-2" type="file" accept=".rec,.csv" multiple hidden>Open files</label>
+              <button class="btn" data-action="load-samples">Load samples</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <aside id="side">
+        <nav class="tabs">
+          <button class="tab active" data-tab="frame">Frame</button>
+          <button class="tab" data-tab="edit">Edit</button>
+          <button class="tab" data-tab="tools">Tools</button>
+          <button class="tab" data-tab="layers">Layers</button>
+          <button class="tab" data-tab="issues">Issues <span id="issue-badge" class="filter-badge hidden">0</span></button>
+        </nav>
+
+        <!-- Frame inspector -->
+        <section class="pane active" data-pane="frame">
+          <div class="frame-head">
+            <div class="frame-title">Frame <span id="frame-index" class="mono">–</span> <span class="muted">/ <span id="frame-count">–</span></span></div>
+            <div class="frame-nav">
+              <button class="btn icon-btn" data-action="prev" title="Previous frame (←)">‹</button>
+              <input id="frame-goto" class="num" type="number" min="0" placeholder="#">
+              <button class="btn icon-btn" data-action="next" title="Next frame (→)">›</button>
+            </div>
+          </div>
+          <div id="stats" class="stats"></div>
+          <div id="inspector" class="inspector"></div>
+          <div class="pane-actions">
+            <button class="btn" data-action="copy-spawn" title="x, y, z, angle of this frame">Copy x, y, z, angle</button>
+            <button class="btn" data-action="copy-pos">Copy NPC_SetPos</button>
+          </div>
+        </section>
+
+        <!-- Selection editing -->
+        <section class="pane" data-pane="edit">
+          <div class="group">
+            <div class="group-title">Selection</div>
+            <div id="selection-info" class="sel-info">Nothing selected</div>
+            <div class="row">
+              <button class="btn" data-action="mark-in" title="I">Set in</button>
+              <button class="btn" data-action="mark-out" title="O">Set out</button>
+              <button class="btn" data-action="select-all" title="Ctrl+A">All</button>
+              <button class="btn" data-action="select-none" title="Esc">Clear</button>
+            </div>
+            <div class="hint">Shift+drag the timeline or Shift+click the path to select.</div>
+          </div>
+          <div class="group">
+            <div class="group-title">Cut</div>
+            <div class="row">
+              <button class="btn" data-action="trim" title="Keep only the selection">Trim to selection</button>
+              <button class="btn" data-action="delete" title="Delete">Delete</button>
+              <button class="btn" data-action="duplicate">Duplicate</button>
+            </div>
+          </div>
+          <div class="group">
+            <div class="group-title">Time</div>
+            <div class="row field-row">
+              <label>Hold at current frame</label>
+              <input id="hold-seconds" class="num" type="number" value="5" step="0.5" min="0.1"><span class="unit">s</span>
+              <button class="btn" data-action="hold">Insert</button>
+            </div>
+            <div class="row field-row">
+              <label>Retime selection ×</label>
+              <input id="retime-factor" class="num" type="number" value="1.5" step="0.1" min="0.05"><span class="unit"></span>
+              <button class="btn" data-action="retime">Apply</button>
+            </div>
+            <div class="row field-row">
+              <label>Selection duration</label>
+              <input id="retime-duration" class="num" type="number" step="0.1" min="0.1"><span class="unit">s</span>
+              <button class="btn" data-action="retime-duration">Set</button>
+            </div>
+            <div class="hint">Retiming scales velocity (and train speed) to match.</div>
+          </div>
+          <div class="group">
+            <div class="group-title">Path</div>
+            <div class="row field-row">
+              <label>Smooth radius / passes</label>
+              <input id="smooth-radius" class="num" type="number" value="3" min="1" step="1">
+              <input id="smooth-passes" class="num" type="number" value="2" min="1" step="1">
+              <button class="btn" data-action="smooth">Smooth</button>
+            </div>
+            <label class="toggle"><input id="smooth-vel" type="checkbox" checked> Recompute velocity after smoothing</label>
+            <div class="row">
+              <button class="btn" data-action="recompute-vel">Recompute velocity from path</button>
+            </div>
+            <div class="row field-row">
+              <label>Drag falloff</label>
+              <input id="drag-radius" class="num" type="number" value="80" min="0" step="5"><span class="unit">m along the path</span>
+            </div>
+            <div class="hint">Drag the orange handle on the map to move the current frame; neighbours follow with the falloff.</div>
+          </div>
+          <div class="group">
+            <div class="group-title">Set a field on the selection</div>
+            <div class="row field-row">
+              <select id="setfield-name"></select>
+              <input id="setfield-value" class="num" type="number" step="any" value="0">
+              <button class="btn" data-action="setfield">Apply</button>
+            </div>
+          </div>
+        </section>
+
+        <!-- Geometry and file tools -->
+        <section class="pane" data-pane="tools">
+          <div class="group">
+            <div class="group-title">Applies to</div>
+            <div class="seg" id="scope">
+              <button class="seg-btn active" data-scope="selection">Selection</button>
+              <button class="seg-btn" data-scope="all">Whole recording</button>
+            </div>
+          </div>
+          <div class="group">
+            <div class="group-title">Move</div>
+            <div class="row xyz xyz-labels"><span>X</span><span>Y</span><span>Z</span><span></span></div>
+            <div class="row xyz">
+              <input id="off-x" class="num" type="number" step="any" value="0" placeholder="dx">
+              <input id="off-y" class="num" type="number" step="any" value="0" placeholder="dy">
+              <input id="off-z" class="num" type="number" step="any" value="0" placeholder="dz">
+              <button class="btn" data-action="offset">Offset</button>
+            </div>
+            <div class="row xyz">
+              <input id="to-x" class="num" type="number" step="any" placeholder="x">
+              <input id="to-y" class="num" type="number" step="any" placeholder="y">
+              <input id="to-z" class="num" type="number" step="any" placeholder="z">
+              <button class="btn" data-action="move-to" title="Translate so the current frame lands here">Move to</button>
+            </div>
+            <div class="hint">"Move to" puts the current frame on that point; the rest follows. Empty boxes keep that axis.</div>
+          </div>
+          <div class="group">
+            <div class="group-title">Rotate</div>
+            <div class="row field-row">
+              <input id="rot-deg" class="num" type="number" step="any" value="90"><span class="unit">°</span>
+              <select id="rot-pivot">
+                <option value="centroid">around centre</option>
+                <option value="current">around current frame</option>
+                <option value="first">around first frame</option>
+              </select>
+              <button class="btn" data-action="rotate">Rotate</button>
+            </div>
+          </div>
+          <div class="group">
+            <div class="group-title">Reverse</div>
+            <label class="toggle"><input id="rev-turn" type="checkbox" checked> Turn around (face the new direction)</label>
+            <div class="row"><button class="btn" data-action="reverse">Reverse playback</button></div>
+          </div>
+          <div class="group">
+            <div class="group-title">Timing</div>
+            <div class="row field-row">
+              <label>Resample every</label>
+              <input id="resample-ms" class="num" type="number" value="100" min="1" step="1"><span class="unit">ms</span>
+              <button class="btn" data-action="resample">Resample</button>
+            </div>
+            <div class="row field-row">
+              <label>Fix timestamps, start at</label>
+              <input id="fix-start" class="num" type="number" placeholder="keep" min="0" step="1"><span class="unit">ms</span>
+              <button class="btn" data-action="fix-times">Fix</button>
+            </div>
+          </div>
+          <div class="group">
+            <div class="group-title">Join</div>
+            <div class="row field-row">
+              <select id="concat-source"></select>
+              <input id="concat-gap" class="num" type="number" placeholder="gap ms" min="0" step="1">
+              <button class="btn" data-action="concat">Append</button>
+            </div>
+            <label class="toggle"><input id="concat-skip" type="checkbox"> Skip its first frame (when it starts where this ends)</label>
+          </div>
+        </section>
+
+        <!-- Layers -->
+        <section class="pane" data-pane="layers">
+          <div id="layer-list" class="layer-list"></div>
+          <div id="seams" class="seams"></div>
+        </section>
+
+        <!-- Issues -->
+        <section class="pane" data-pane="issues">
+          <div id="issue-list" class="issue-list"></div>
+        </section>
+      </aside>
+    </main>
+
+    <footer id="timeline">
+      <div class="tl-controls">
+        <button class="btn icon-btn" data-action="home" title="First frame (Home)"><svg class="ico" viewBox="0 0 16 16" aria-hidden="true"><rect x="3" y="3" width="2" height="10" fill="currentColor"/><path d="M13 3v10L6 8z" fill="currentColor"/></svg></button>
+        <button class="btn icon-btn play" data-action="play" id="btn-play" title="Play / pause (Space)"><svg class="ico" viewBox="0 0 16 16" aria-hidden="true"><path d="M4 2.5v11l9.5-5.5z" fill="currentColor"/></svg></button>
+        <button class="btn icon-btn" data-action="end" title="Last frame (End)"><svg class="ico" viewBox="0 0 16 16" aria-hidden="true"><rect x="11" y="3" width="2" height="10" fill="currentColor"/><path d="M3 3v10l7-5z" fill="currentColor"/></svg></button>
+        <select id="play-rate" title="Playback speed">
+          <option value="0.25">0.25×</option><option value="0.5">0.5×</option><option value="1" selected>1×</option>
+          <option value="2">2×</option><option value="4">4×</option><option value="8">8×</option><option value="16">16×</option>
+        </select>
+        <select id="graph-kind" title="Graph">
+          <option value="speed">Speed</option><option value="z">Height</option><option value="interval">Frame gap</option>
+        </select>
+        <span id="tl-time" class="mono tl-time">0.0 s</span>
+        <button class="btn small" data-action="tl-fit" title="Show the whole recording">Fit</button>
+      </div>
+      <canvas id="tl-canvas"></canvas>
+    </footer>
+
+    <div id="toast" class="hidden"></div>
+    <div id="drop-overlay" class="hidden"><div>Drop to open</div></div>
+  </div>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="rec.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
