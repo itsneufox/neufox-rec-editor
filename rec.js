@@ -184,23 +184,24 @@
   // Problems worth flagging before saving.
   function validate(rec) {
     const issues = [];
+    const add = (level, frame, key, ...args) => issues.push({ level, frame, key, args, text: key.replace(/\{(\d+)\}/g, (m, i) => args[i]) });
     const fr = rec.frames;
-    if (rec.trailing) issues.push({ level: 'warn', frame: -1, text: `${rec.trailing} trailing bytes ignored (truncated frame)` });
-    if (!fr.length) issues.push({ level: 'error', frame: -1, text: 'no frames' });
+    if (rec.trailing) add('warn', -1, '{0} trailing bytes ignored (truncated frame)', rec.trailing);
+    if (!fr.length) add('error', -1, 'no frames');
     for (let i = 0; i < fr.length; i++) {
       const f = fr[i];
-      if (i && f.t <= fr[i - 1].t) issues.push({ level: 'error', frame: i, text: `timestamp ${f.t} not after ${fr[i - 1].t}` });
+      if (i && f.t <= fr[i - 1].t) add('error', i, 'timestamp {0} not after {1}', f.t, fr[i - 1].t);
       for (const k of ['x', 'y', 'z', 'qw', 'qx', 'qy', 'qz', 'vx', 'vy', 'vz']) {
-        if (!Number.isFinite(f[k])) { issues.push({ level: 'error', frame: i, text: `${k} is not a number` }); break; }
+        if (!Number.isFinite(f[k])) { add('error', i, '{0} is not a number', k); break; }
       }
       if (i) {
         const jump = Math.hypot(f.x - fr[i - 1].x, f.y - fr[i - 1].y, f.z - fr[i - 1].z);
-        if (jump > 30) issues.push({ level: 'warn', frame: i, text: `jumps ${jump.toFixed(1)} m from the previous frame` });
+        if (jump > 30) add('warn', i, 'jumps {0} m from the previous frame', jump.toFixed(1));
       }
       const qn = Math.hypot(f.qw, f.qx, f.qy, f.qz);
-      if (Math.abs(qn - 1) > 0.05) issues.push({ level: 'warn', frame: i, text: `rotation not normalised (|q| = ${qn.toFixed(3)})` });
-      if (Math.abs(f.x) > 20000 || Math.abs(f.y) > 20000) issues.push({ level: 'warn', frame: i, text: 'position far outside the map' });
-      if (issues.length > 500) { issues.push({ level: 'warn', frame: -1, text: 'more issues not listed' }); break; }
+      if (Math.abs(qn - 1) > 0.05) add('warn', i, 'rotation not normalised (|q| = {0})', qn.toFixed(3));
+      if (Math.abs(f.x) > 20000 || Math.abs(f.y) > 20000) add('warn', i, 'position far outside the map');
+      if (issues.length > 500) { add('warn', -1, 'more issues not listed'); break; }
     }
     return issues;
   }

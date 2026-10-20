@@ -65,7 +65,7 @@ function setActive(index, fit) {
 
 function removeLayer(index) {
   const l = state.layers[index];
-  if (l.dirty && !confirm(`Close ${l.rec.name} without downloading your changes?`)) return;
+  if (l.dirty && !confirm(t('Close {0} without downloading your changes?', l.rec.name))) return;
   if (l.group) map.removeLayer(l.group);
   state.layers.splice(index, 1);
   if (!state.layers.length) { state.active = -1; refreshAll(); return; }
@@ -78,7 +78,7 @@ function snapshot(rec) { return { frames: rec.frames.map(f => ({ ...f })), name:
 // Run an edit on the active recording with undo support.
 function edit(label, fn, opts = {}) {
   const layer = activeLayer();
-  if (!layer) return toast('Open a recording first', true);
+  if (!layer) return toast(t('Open a recording first'), true);
   const before = snapshot(layer.rec);
   try {
     const msg = fn(layer.rec);
@@ -89,25 +89,25 @@ function edit(label, fn, opts = {}) {
     toast(msg || label);
   } catch (err) {
     layer.rec.frames = before.frames;
-    toast(err.message || String(err), true);
+    toast(t(err.message || String(err)), true);
   }
 }
 
 function undo() {
   const l = activeLayer();
-  if (!l || !l.undo.length) return toast('Nothing to undo');
+  if (!l || !l.undo.length) return toast(t('Nothing to undo'));
   const step = l.undo.pop();
   l.redo.push({ label: step.label, data: snapshot(l.rec) });
   l.rec.frames = step.data.frames; l.rec.name = step.data.name;
-  clampState(); refreshAll(); toast(`Undid: ${step.label}`);
+  clampState(); refreshAll(); toast(t('Undid: {0}', step.label));
 }
 function redo() {
   const l = activeLayer();
-  if (!l || !l.redo.length) return toast('Nothing to redo');
+  if (!l || !l.redo.length) return toast(t('Nothing to redo'));
   const step = l.redo.pop();
   l.undo.push({ label: step.label, data: snapshot(l.rec) });
   l.rec.frames = step.data.frames; l.rec.name = step.data.name;
-  clampState(); refreshAll(); toast(`Redid: ${step.label}`);
+  clampState(); refreshAll(); toast(t('Redid: {0}', step.label));
 }
 
 function pushUndo(layer, label, data) {
@@ -146,9 +146,9 @@ async function openFiles(fileList) {
         ? Rec.fromCSV(await file.text(), file.name)
         : Rec.parse(await file.arrayBuffer(), file.name);
       addLayer(rec, true);
-      toast(`Opened ${file.name}: ${rec.frames.length} frames`);
+      toast(t('Opened {0}: {1} frames', file.name, rec.frames.length));
     } catch (err) {
-      toast(err.message || String(err), true);
+      toast(t(err.message || String(err)), true);
     }
   }
   finishBatch(first, state.layers.length - first);
@@ -163,11 +163,11 @@ async function loadUrls(urls) {
       const name = decodeURIComponent(url.split('/').pop());
       addLayer(Rec.parse(await res.arrayBuffer(), name), true);
     } catch (err) {
-      toast(err.message || String(err), true);
+      toast(t(err.message || String(err)), true);
     }
   }
   finishBatch(first, state.layers.length - first);
-  if (state.layers.length - first > 1) toast(`Opened ${state.layers.length - first} recordings`);
+  if (state.layers.length - first > 1) toast(t('Opened {0} recordings', state.layers.length - first));
 }
 
 // samples/index.json lists the bundled recordings: ["file.rec", ...]
@@ -180,7 +180,7 @@ async function sampleList() {
 }
 async function loadSamples() {
   const list = await sampleList();
-  if (!list.length) return toast('No samples bundled', true);
+  if (!list.length) return toast(t('No samples bundled'), true);
   await loadUrls(list.map(n => `samples/${encodeURIComponent(n)}`));
 }
 
@@ -197,7 +197,7 @@ function recFileName(rec) { return /\.rec$/i.test(rec.name) ? rec.name : `${rec.
 
 function downloadLayer(layer) {
   const errors = Rec.validate(layer.rec).filter(i => i.level === 'error');
-  if (errors.length && !confirm(`${layer.rec.name} has ${errors.length} error(s) (see Issues). Download anyway?`)) return;
+  if (errors.length && !confirm(t('{0} has {1} error(s) (see Issues). Download anyway?', layer.rec.name, errors.length))) return;
   download(recFileName(layer.rec), Rec.serialize(layer.rec), 'application/octet-stream');
   layer.cleanAt = layer.undo.length;
   renderLayerSelect();
@@ -223,8 +223,9 @@ function initMap() {
     draggable: true, keyboard: false, zIndexOffset: 1000, title: 'Drag to move this frame',
     icon: L.divIcon({ className: '', iconSize: [18, 18], iconAnchor: [9, 9], html: '<div class="drag-handle"></div>' }),
   });
-  startLabel = L.marker([0, 0], { interactive: false, icon: L.divIcon({ className: '', iconSize: null, iconAnchor: [-6, 8], html: '<div class="end-label">START</div>' }) });
-  endLabel = L.marker([0, 0], { interactive: false, icon: L.divIcon({ className: '', iconSize: null, iconAnchor: [-6, 8], html: '<div class="end-label">END</div>' }) });
+  startLabel = L.marker([0, 0], { interactive: false });
+  endLabel = L.marker([0, 0], { interactive: false });
+  setEndLabels();
 
   let dragBase = null, dragUndo = null, dragOrigin = null, dragRaf = 0;
   dragHandle.on('dragstart', () => {
@@ -245,7 +246,7 @@ function initMap() {
   dragHandle.on('dragend', () => {
     const layer = activeLayer();
     if (!layer || !dragUndo) return;
-    pushUndo(layer, 'Move frame', dragUndo);
+    pushUndo(layer, t('Move frame'), dragUndo);
     dragBase = dragUndo = null;
     refreshAll();
   });
@@ -255,6 +256,12 @@ function initMap() {
   });
   map.on('click', onMapClick);
   map.on('zoomend', () => { if ($('toggle-points').checked) renderPaths(); });
+}
+
+function setEndLabels() {
+  const label = text => L.divIcon({ className: '', iconSize: null, iconAnchor: [-6, 8], html: `<div class="end-label">${text}</div>` });
+  startLabel.setIcon(label(t('START')));
+  endLabel.setIcon(label(t('END')));
 }
 
 function speedColour(u) {
@@ -333,7 +340,7 @@ function renderPaths() {
 
 function legend(max) {
   const stops = SPEED_STOPS.map(([p, c]) => `${c} ${p * 100}%`).join(', ');
-  $('speed-legend').innerHTML = `Speed<div class="bar" style="background:linear-gradient(90deg, ${stops})"></div><div class="ends"><span>0</span><span>${max.toFixed(0)} km/h</span></div><div class="sel-key"><i></i>selection</div>`;
+  $('speed-legend').innerHTML = `${t('Speed')}<div class="bar" style="background:linear-gradient(90deg, ${stops})"></div><div class="ends"><span>0</span><span>${max.toFixed(0)} km/h</span></div><div class="sel-key"><i></i>${t('selection')}</div>`;
 }
 
 // Position at playback time (interpolated) for a smooth ghost.
@@ -647,7 +654,7 @@ function renderFramePane() {
   const insp = $('inspector');
   if (!rec || !rec.frames.length) {
     $('frame-index').textContent = '–'; $('frame-count').textContent = '–';
-    insp.innerHTML = '<div class="muted">No recording open.</div>';
+    insp.innerHTML = `<div class="muted">${t('No recording open.')}</div>`;
     $('stats').innerHTML = '';
     return;
   }
@@ -696,36 +703,36 @@ function buildInspector(rec, fields) {
   insp.dataset.train = String(Rec.isTrainLike(rec));
   const groups = new Map();
   groups.set('Timing', [
-    `<div class="insp-field readonly"><label>Since start (s)</label><input class="num" data-readonly="rel" readonly></div>`,
-    `<div class="insp-field readonly"><label>Gap (ms)</label><input class="num" data-readonly="dt" readonly></div>`,
+    `<div class="insp-field readonly"><label>${t('Since start (s)')}</label><input class="num" data-readonly="rel" readonly></div>`,
+    `<div class="insp-field readonly"><label>${t('Gap (ms)')}</label><input class="num" data-readonly="dt" readonly></div>`,
   ]);
   for (const key of fields) {
     const [label, group, step] = Rec.FIELD_INFO[key] || [key, 'Other', 1];
     if (!groups.has(group)) groups.set(group, []);
     if (key === 'vz') {
-      groups.get(group).push(`<div class="insp-field readonly"><label>Speed (km/h)</label><input class="num" data-readonly="kmh" readonly></div>`);
+      groups.get(group).push(`<div class="insp-field readonly"><label>${t('Speed (km/h)')}</label><input class="num" data-readonly="kmh" readonly></div>`);
     }
     groups.get(group).push(
-      `<div class="insp-field"><label><span>${label}</span><button class="apply-sel" data-apply="${key}" title="Apply this value to the whole selection">⇉ sel</button></label>` +
+      `<div class="insp-field"><label><span>${t(label)}</span><button class="apply-sel" data-apply="${key}" title="${t('Apply this value to the whole selection')}">⇉ sel</button></label>` +
       `<input class="num" type="number" step="${step}" data-field="${key}"></div>`
     );
   }
-  insp.innerHTML = [...groups].map(([g, items]) => `<div><div class="insp-group-title">${g}</div><div class="insp-grid">${items.join('')}</div></div>`).join('');
+  insp.innerHTML = [...groups].map(([g, items]) => `<div><div class="insp-group-title">${t(g)}</div><div class="insp-grid">${items.join('')}</div></div>`).join('');
   insp.querySelectorAll('input[data-field]').forEach(input => {
     input.addEventListener('change', () => {
       const key = input.dataset.field;
       const v = Number(input.value);
       if (!Number.isFinite(v)) return;
-      edit(`Set ${key}`, r => { Rec.setFrameField(r, r.frames[state.cur], key, v); if (key === 't') Rec.fixTimestamps(r); }, { keepSel: true });
+      edit(t('Set {0}', key), r => { Rec.setFrameField(r, r.frames[state.cur], key, v); if (key === 't') Rec.fixTimestamps(r); }, { keepSel: true });
     });
   });
   insp.querySelectorAll('[data-apply]').forEach(btn => {
     btn.addEventListener('click', () => {
       const key = btn.dataset.apply;
-      if (!state.sel) return toast('Select frames first (Edit tab or Shift+drag the timeline)', true);
+      if (!state.sel) return toast(t('Select frames first (Edit tab or Shift+drag the timeline)'), true);
       const v = Rec.getFrameField(activeRec().frames[state.cur], key);
       const [a, b] = state.sel;
-      edit(`Set ${key} on ${b - a + 1} frames`, r => Rec.setField(r, a, b, key, v), { keepSel: true });
+      edit(t('Set {0} on {1} frames', key, b - a + 1), r => Rec.setField(r, a, b, key, v), { keepSel: true });
     });
   });
 }
@@ -735,22 +742,22 @@ function renderStats() {
   if (!rec) { $('stats').innerHTML = ''; return; }
   const s = Rec.stats(rec);
   const cells = [
-    ['Type', rec.type === Rec.TYPE_DRIVER ? (Rec.isTrainLike(rec) ? 'driver · train' : 'driver') : 'on foot'],
+    ['Type', t(rec.type === Rec.TYPE_DRIVER ? (Rec.isTrainLike(rec) ? 'driver · train' : 'driver') : 'on foot')],
     ['Duration', fmtTime(s.duration)],
     ['Distance', s.distance >= 1000 ? `${(s.distance / 1000).toFixed(2)} km` : `${s.distance.toFixed(0)} m`],
     ['Max speed', `${s.maxKmh.toFixed(0)} km/h`],
     ['Avg speed', `${s.avgKmh.toFixed(0)} km/h`],
     ['Frame gap', `${s.interval} ms`],
   ];
-  $('stats').innerHTML = cells.map(([k, v]) => `<div class="stat"><div class="k">${k}</div><div class="v" title="${v}">${v}</div></div>`).join('');
+  $('stats').innerHTML = cells.map(([k, v]) => `<div class="stat"><div class="k">${t(k)}</div><div class="v" title="${v}">${v}</div></div>`).join('');
 }
 
 function renderSelectionInfo() {
   const rec = activeRec();
-  if (!rec || !state.sel) { $('selection-info').textContent = 'Nothing selected'; return; }
+  if (!rec || !state.sel) { $('selection-info').textContent = t('Nothing selected'); return; }
   const [a, b] = state.sel;
   const dur = rec.frames[b].t - rec.frames[a].t;
-  $('selection-info').textContent = `frames ${a}–${b} (${b - a + 1}) · ${fmtTime(dur)}`;
+  $('selection-info').textContent = t('frames {0}–{1} ({2}) · {3}', a, b, b - a + 1, fmtTime(dur));
   const d = $('retime-duration');
   if (document.activeElement !== d) d.value = (dur / 1000).toFixed(2);
 }
@@ -766,20 +773,20 @@ function renderLayersPane() {
       <div class="layer-top">
         <span class="swatch" style="background:${i === state.active ? 'linear-gradient(90deg,#3b82f6,#eab308,#ef4444)' : l.colour}"></span>
         <input class="layer-name" value="${escapeHtml(l.rec.name)}" spellcheck="false">
-        <label class="toggle" title="Show on map"><input type="checkbox" ${l.visible ? 'checked' : ''}></label>
+        <label class="toggle" title="${t('Show on map')}"><input type="checkbox" ${l.visible ? 'checked' : ''}></label>
       </div>
-      <div class="layer-meta">${l.rec.type === 1 ? 'driver' : 'on foot'} · ${s.frames} frames · ${fmtTime(s.duration)}</div>
+      <div class="layer-meta">${t('{0} · {1} frames · {2}', t(l.rec.type === 1 ? 'driver' : 'on foot'), s.frames, fmtTime(s.duration))}</div>
       <div class="layer-actions">
-        <button class="btn small" data-l="up" title="Move up">↑</button>
-        <button class="btn small" data-l="down" title="Move down">↓</button>
-        <button class="btn small" data-l="dup">Duplicate</button>
-        <button class="btn small" data-l="save">Download</button>
-        <button class="btn small danger" data-l="close">Close</button>
+        <button class="btn small" data-l="up" title="${t('Move up')}">↑</button>
+        <button class="btn small" data-l="down" title="${t('Move down')}">↓</button>
+        <button class="btn small" data-l="dup">${t('Duplicate')}</button>
+        <button class="btn small" data-l="save">${t('Download')}</button>
+        <button class="btn small danger" data-l="close">${t('Close')}</button>
       </div>`;
     el.addEventListener('click', ev => { if (ev.target === el || ev.target.classList.contains('layer-meta')) { if (i !== state.active) setActive(i, true); } });
     el.querySelector('.layer-name').addEventListener('change', ev => {
       const name = ev.target.value.trim() || l.rec.name;
-      pushUndo(l, 'Rename', snapshot(l.rec));
+      pushUndo(l, t('Rename'), snapshot(l.rec));
       l.rec.name = name; refreshAll();
     });
     el.querySelector('.layer-name').addEventListener('focus', () => { if (i !== state.active) setActive(i, false); });
@@ -795,7 +802,7 @@ function renderLayersPane() {
     }));
     list.appendChild(el);
   });
-  if (!state.layers.length) list.innerHTML = '<div class="muted">No recordings open.</div>';
+  if (!state.layers.length) list.innerHTML = `<div class="muted">${t('No recordings open.')}</div>`;
   renderSeams();
 }
 
@@ -804,7 +811,7 @@ function renderSeams() {
   const vis = state.layers.filter(l => l.visible);
   if (vis.length < 2) { box.innerHTML = ''; return; }
   const seams = Rec.seams(vis.map(l => l.rec), true);
-  box.innerHTML = `<div class="group-title">Joins (end → next start, Layers order)</div>` +
+  box.innerHTML = `<div class="group-title">${t('Joins (end → next start, Layers order)')}</div>` +
     seams.map(s => `<div class="seam${s.distance > 2 ? ' bad' : ''}"><span>${escapeHtml(short(s.from))} → ${escapeHtml(short(s.to))}</span><span class="d">${s.distance.toFixed(2)} m</span></div>`).join('');
 }
 function short(name) { return name.replace(/\.rec$/i, ''); }
@@ -819,16 +826,16 @@ function renderIssues() {
   badge.textContent = issues.length;
   badge.classList.toggle('hidden', !issues.length);
   badge.classList.toggle('error', issues.some(i => i.level === 'error'));
-  if (!issues.length) { list.innerHTML = '<div class="no-issues">No problems found.</div>'; return; }
+  if (!issues.length) { list.innerHTML = `<div class="no-issues">${t('No problems found.')}</div>`; return; }
   list.innerHTML = '';
   const fixRow = document.createElement('div');
   fixRow.className = 'row';
-  fixRow.innerHTML = '<button class="btn" data-action="fix-times">Fix timestamps</button>';
+  fixRow.innerHTML = `<button class="btn" data-action="fix-times">${t('Fix timestamps')}</button>`;
   list.appendChild(fixRow);
   for (const iss of issues) {
     const el = document.createElement('div');
     el.className = `issue ${iss.level}`;
-    el.innerHTML = `<span class="lvl">${iss.level}</span><span class="fr">${iss.frame >= 0 ? '#' + iss.frame : ''}</span><span>${escapeHtml(iss.text)}</span>`;
+    el.innerHTML = `<span class="lvl">${t(iss.level)}</span><span class="fr">${iss.frame >= 0 ? '#' + iss.frame : ''}</span><span>${escapeHtml(t(iss.key, ...iss.args))}</span>`;
     if (iss.frame >= 0) el.addEventListener('click', () => seek(iss.frame, { pan: true }));
     list.appendChild(el);
   }
@@ -839,7 +846,7 @@ function renderLayerSelect() {
   sel.innerHTML = state.layers.map((l, i) => `<option value="${i}" ${i === state.active ? 'selected' : ''}>${escapeHtml(l.rec.name)}${l.dirty ? ' •' : ''}</option>`).join('');
   sel.classList.toggle('hidden', !state.layers.length);
   const src = $('concat-source');
-  src.innerHTML = state.layers.map((l, i) => i === state.active ? '' : `<option value="${i}">${escapeHtml(l.rec.name)}</option>`).join('') || '<option value="">open another recording</option>';
+  src.innerHTML = state.layers.map((l, i) => i === state.active ? '' : `<option value="${i}">${escapeHtml(l.rec.name)}</option>`).join('') || `<option value="">${t('open another recording')}</option>`;
 }
 
 function renderSetFieldOptions() {
@@ -848,7 +855,7 @@ function renderSetFieldOptions() {
   const cur = sel.value;
   if (!rec) { sel.innerHTML = ''; return; }
   const fields = inspectorFields(rec).filter(k => k !== 't');
-  sel.innerHTML = fields.map(k => `<option value="${k}">${(Rec.FIELD_INFO[k] || [k])[0]}</option>`).join('');
+  sel.innerHTML = fields.map(k => `<option value="${k}">${t((Rec.FIELD_INFO[k] || [k])[0])}</option>`).join('');
   if (fields.includes(cur)) sel.value = cur;
 }
 
@@ -870,7 +877,7 @@ function refreshAll() {
 
 // ── Actions ─────────────────────────────────────────────────────────────
 function needSel() {
-  if (!state.sel) throw new Error('Select frames first: Set in / Set out, or Shift+drag the timeline');
+  if (!state.sel) throw new Error(t('Select frames first: Set in / Set out, or Shift+drag the timeline'));
   return state.sel;
 }
 function scopeRange(rec) {
@@ -901,49 +908,49 @@ const actions = {
   'select-all': () => { const r = activeRec(); if (!r) return; state.sel = [0, r.frames.length - 1]; renderPaths(); renderSelectionInfo(); drawTimeline(); },
   'select-none': () => { state.sel = null; renderPaths(); renderSelectionInfo(); drawTimeline(); },
 
-  'trim': () => edit('Trim to selection', r => { const [a, b] = needSel(); Rec.trim(r, a, b); state.cur = Math.max(0, state.cur - a); state.sel = null; return `Trimmed to ${b - a + 1} frames`; }),
-  'delete': () => edit('Delete frames', r => { const [a, b] = needSel(); Rec.deleteRange(r, a, b); state.cur = Math.min(a, r.frames.length - 1); state.sel = null; return `Deleted ${b - a + 1} frames`; }),
-  'duplicate': () => edit('Duplicate frames', r => { const [a, b] = needSel(); Rec.duplicateRange(r, a, b); state.sel = [b + 1, b + 1 + (b - a)]; return `Duplicated ${b - a + 1} frames`; }, { keepSel: true }),
-  'hold': () => edit('Insert hold', r => { const s = num('hold-seconds', 5); const n = Rec.hold(r, state.cur, s * 1000); return `Holding ${s} s (${n} frames)`; }),
-  'retime': () => edit('Retime', r => { const [a, b] = needSel(); const k = num('retime-factor', 1); Rec.retime(r, a, b, k); return `Retimed ×${k}`; }, { keepSel: true }),
-  'retime-duration': () => edit('Retime', r => {
+  'trim': () => edit(t('Trim to selection'), r => { const [a, b] = needSel(); Rec.trim(r, a, b); state.cur = Math.max(0, state.cur - a); state.sel = null; return t('Trimmed to {0} frames', b - a + 1); }),
+  'delete': () => edit(t('Delete frames'), r => { const [a, b] = needSel(); Rec.deleteRange(r, a, b); state.cur = Math.min(a, r.frames.length - 1); state.sel = null; return t('Deleted {0} frames', b - a + 1); }),
+  'duplicate': () => edit(t('Duplicate frames'), r => { const [a, b] = needSel(); Rec.duplicateRange(r, a, b); state.sel = [b + 1, b + 1 + (b - a)]; return t('Duplicated {0} frames', b - a + 1); }, { keepSel: true }),
+  'hold': () => edit(t('Insert hold'), r => { const s = num('hold-seconds', 5); const n = Rec.hold(r, state.cur, s * 1000); return t('Holding {0} s ({1} frames)', s, n); }),
+  'retime': () => edit(t('Retime'), r => { const [a, b] = needSel(); const k = num('retime-factor', 1); Rec.retime(r, a, b, k); return t('Retimed ×{0}', k); }, { keepSel: true }),
+  'retime-duration': () => edit(t('Retime'), r => {
     const [a, b] = needSel();
     const cur = r.frames[b].t - r.frames[a].t;
-    if (cur <= 0) throw new Error('Selection has no duration');
+    if (cur <= 0) throw new Error(t('Selection has no duration'));
     const k = (num('retime-duration', cur / 1000) * 1000) / cur;
     Rec.retime(r, a, b, k);
-    return `Selection now ${fmtTime(r.frames[b].t - r.frames[a].t)}`;
+    return t('Selection now {0}', fmtTime(r.frames[b].t - r.frames[a].t));
   }, { keepSel: true }),
-  'smooth': () => edit('Smooth', r => { const [a, b] = scopeOrSel(r); Rec.smooth(r, a, b, num('smooth-radius', 3), num('smooth-passes', 2), $('smooth-vel').checked); return `Smoothed frames ${a}–${b}`; }, { keepSel: true }),
-  'recompute-vel': () => edit('Recompute velocity', r => { const [a, b] = scopeOrSel(r); Rec.recomputeVelocity(r, a, b); return `Velocity recomputed for ${b - a + 1} frames`; }, { keepSel: true }),
-  'setfield': () => edit('Set field', r => { const [a, b] = needSel(); const k = $('setfield-name').value; Rec.setField(r, a, b, k, num('setfield-value', 0)); return `Set ${k} on ${b - a + 1} frames`; }, { keepSel: true }),
+  'smooth': () => edit(t('Smooth'), r => { const [a, b] = scopeOrSel(r); Rec.smooth(r, a, b, num('smooth-radius', 3), num('smooth-passes', 2), $('smooth-vel').checked); return t('Smoothed frames {0}–{1}', a, b); }, { keepSel: true }),
+  'recompute-vel': () => edit(t('Recompute velocity'), r => { const [a, b] = scopeOrSel(r); Rec.recomputeVelocity(r, a, b); return t('Velocity recomputed for {0} frames', b - a + 1); }, { keepSel: true }),
+  'setfield': () => edit(t('Set field'), r => { const [a, b] = needSel(); const k = $('setfield-name').value; Rec.setField(r, a, b, k, num('setfield-value', 0)); return t('Set {0} on {1} frames', t((Rec.FIELD_INFO[k] || [k])[0]), b - a + 1); }, { keepSel: true }),
 
-  'offset': () => edit('Offset', r => { const [a, b] = scopeRange(r); Rec.offset(r, a, b, num('off-x'), num('off-y'), num('off-z')); return `Moved ${b - a + 1} frames`; }, { keepSel: true }),
-  'move-to': () => edit('Move to', r => {
+  'offset': () => edit(t('Offset'), r => { const [a, b] = scopeRange(r); Rec.offset(r, a, b, num('off-x'), num('off-y'), num('off-z')); return t('Moved {0} frames', b - a + 1); }, { keepSel: true }),
+  'move-to': () => edit(t('Move to'), r => {
     const [a, b] = scopeRange(r);
     const f = r.frames[state.cur];
     const dx = $('to-x').value === '' ? 0 : num('to-x') - f.x;
     const dy = $('to-y').value === '' ? 0 : num('to-y') - f.y;
     const dz = $('to-z').value === '' ? 0 : num('to-z') - f.z;
     Rec.offset(r, a, b, dx, dy, dz);
-    return `Moved by ${dx.toFixed(2)}, ${dy.toFixed(2)}, ${dz.toFixed(2)}`;
+    return t('Moved by {0}, {1}, {2}', dx.toFixed(2), dy.toFixed(2), dz.toFixed(2));
   }, { keepSel: true }),
-  'rotate': () => edit('Rotate', r => {
+  'rotate': () => edit(t('Rotate'), r => {
     const [a, b] = scopeRange(r);
     const pivot = $('rot-pivot').value;
     const [px, py] = pivot === 'current' ? [r.frames[state.cur].x, r.frames[state.cur].y] : pivot === 'first' ? [r.frames[a].x, r.frames[a].y] : Rec.centroid(r, a, b);
     const deg = num('rot-deg', 0);
     Rec.rotate(r, a, b, deg, px, py);
-    return `Rotated ${deg}°`;
+    return t('Rotated {0}°', deg);
   }, { keepSel: true }),
-  'reverse': () => edit('Reverse', r => { const [a, b] = scopeRange(r); Rec.reverse(r, a, b, $('rev-turn').checked); return `Reversed frames ${a}–${b}`; }, { keepSel: true }),
-  'resample': () => edit('Resample', r => { const ms = num('resample-ms', 100); const before = r.frames.length; Rec.resample(r, ms); state.sel = null; return `Resampled: ${before} → ${r.frames.length} frames`; }),
-  'fix-times': () => edit('Fix timestamps', r => { const v = $('fix-start').value === '' ? null : num('fix-start'); const n = Rec.fixTimestamps(r, v); return n ? `Fixed ${n} timestamps` : 'Timestamps were already fine'; }, { keepSel: true }),
+  'reverse': () => edit(t('Reverse'), r => { const [a, b] = scopeRange(r); Rec.reverse(r, a, b, $('rev-turn').checked); return t('Reversed frames {0}–{1}', a, b); }, { keepSel: true }),
+  'resample': () => edit(t('Resample'), r => { const ms = num('resample-ms', 100); const before = r.frames.length; Rec.resample(r, ms); state.sel = null; return t('Resampled: {0} → {1} frames', before, r.frames.length); }),
+  'fix-times': () => edit(t('Fix timestamps'), r => { const v = $('fix-start').value === '' ? null : num('fix-start'); const n = Rec.fixTimestamps(r, v); return n ? t('Fixed {0} timestamps', n) : t('Timestamps were already fine'); }, { keepSel: true }),
   'concat': () => {
     const i = Number($('concat-source').value);
     const other = state.layers[i];
-    if (!other || $('concat-source').value === '') return toast('Open another recording to append', true);
-    edit(`Append ${other.rec.name}`, r => { Rec.concat(r, other.rec, $('concat-gap').value === '' ? null : num('concat-gap'), $('concat-skip').checked); return `Appended ${other.rec.frames.length} frames`; }, { keepSel: true });
+    if (!other || $('concat-source').value === '') return toast(t('Open another recording to append'), true);
+    edit(t('Append {0}', other.rec.name), r => { Rec.concat(r, other.rec, $('concat-gap').value === '' ? null : num('concat-gap'), $('concat-skip').checked); return t('Appended {0} frames', other.rec.frames.length); }, { keepSel: true });
   },
 };
 
@@ -952,8 +959,8 @@ function scopeOrSel(rec) { return state.sel || [0, rec.frames.length - 1]; }
 function closeMenus() { document.querySelectorAll('details[open]').forEach(d => d.removeAttribute('open')); }
 
 async function copy(text) {
-  try { await navigator.clipboard.writeText(text); toast('Copied'); }
-  catch { prompt('Copy:', text); }
+  try { await navigator.clipboard.writeText(text); toast(t('Copied')); }
+  catch { prompt(t('Copy:'), text); }
 }
 
 let toastTimer = 0;
@@ -1047,6 +1054,10 @@ function initUi() {
 initMap();
 initTimeline();
 initUi();
+setLanguage(detectLanguage());
+setEndLabels();
+$('lang-select').value = i18nLang;
+$('lang-select').addEventListener('change', ev => setLanguage(ev.target.value, () => { $('inspector').dataset.type = ''; setEndLabels(); refreshAll(); }));
 refreshAll();
 sampleList().then(list => { document.querySelectorAll('[data-action="load-samples"]').forEach(b => b.classList.toggle('hidden', !list.length)); });
 

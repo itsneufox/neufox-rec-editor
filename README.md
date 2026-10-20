@@ -2,6 +2,8 @@
 
 Browser editor for SA-MP / open.mp NPC recordings (`.rec`). Open one or more recordings, see them on the San Andreas map, scrub and play them back, and edit them: cut, retime, hold, smooth, drag points, move, rotate, reverse, and join. Files never leave your browser.
 
+Available in English and Português (Brasil): it follows your browser language, and the **EN / PT** picker in the top bar switches it.
+
 Same stack and map as [neufox's Node Viewer](https://github.com/itsneufox/neufox-node-viewer): plain HTML/CSS/JS, Leaflet, `samap.png`. No build step.
 
 ## Running locally

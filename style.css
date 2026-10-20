@@ -66,6 +66,7 @@ input.num { font-family: var(--mono); width: 84px; min-width: 0; }
 input.num::-webkit-outer-spin-button, input.num::-webkit-inner-spin-button { -webkit-appearance: none; appearance: none; }
 input.num { -moz-appearance: textfield; appearance: textfield; }
 .layer-select { max-width: 280px; }
+.lang-select { min-width: 58px; }
 
 .toggle { display: flex; align-items: center; gap: 6px; cursor: pointer; color: var(--muted); user-select: none; min-height: 28px; }
 .toggle:hover, .toggle:has(:checked) { color: var(--text); }
@@ -161,7 +162,7 @@ input.num { -moz-appearance: textfield; appearance: textfield; }
 }
 .tabs { display: flex; border-bottom: 1px solid var(--border); flex-shrink: 0; overflow-x: auto; }
 .tab {
-  flex: 1; min-height: 40px; padding: 0 8px; background: none; border: none; border-bottom: 2px solid transparent;
+  flex: 1 1 auto; min-height: 40px; padding: 0 6px; font-size: 12.5px; background: none; border: none; border-bottom: 2px solid transparent;
   color: var(--muted); font: inherit; font-weight: 500; cursor: pointer; white-space: nowrap;
   display: inline-flex; align-items: center; justify-content: center; gap: 4px;
 }
@@ -284,7 +285,10 @@ input.num { -moz-appearance: textfield; appearance: textfield; }
   body.has-layers #btn-samples { display: none; }
   .controls { gap: 6px; flex-wrap: nowrap; min-width: 0; }
   .controls .separator { display: none; }
-  .layer-select { flex: 1; max-width: none; min-width: 90px; }
+  .layer-select { flex: 1; max-width: none; min-width: 0; width: 0; }
+  .lang-select { min-width: 0; width: 54px; padding: 0 4px; }
+  .controls .icon-btn { min-width: 34px; padding: 0 6px; }
+  .controls .btn { padding: 0 9px; }
   .controls { margin-left: 0; flex: 1; }
   .long-label { display: none; }
   .tl-controls { flex-wrap: nowrap; gap: 4px; padding: 6px 8px; }

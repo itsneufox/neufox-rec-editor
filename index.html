@@ -20,7 +20,7 @@
         <span>neufox's Rec Editor</span>
       </div>
       <div class="controls">
-        <select id="layer-select" class="layer-select" title="Active recording"></select>
+        <select id="layer-select" class="layer-select" title="Active recording" data-no-i18n></select>
         <div class="separator"></div>
         <label class="btn" title="Open .rec or .csv files (or drop them anywhere)">
           <input id="file-input" type="file" accept=".rec,.csv" multiple hidden>
@@ -38,6 +38,10 @@
         <div class="separator"></div>
         <button class="btn icon-btn" data-action="undo" title="Undo (Ctrl+Z)">↶</button>
         <button class="btn icon-btn" data-action="redo" title="Redo (Ctrl+Shift+Z)">↷</button>
+        <select id="lang-select" class="lang-select" title="Language" data-no-i18n>
+          <option value="en">EN</option>
+          <option value="pt">PT</option>
+        </select>
       </div>
     </header>
 
@@ -49,8 +53,8 @@
           <label class="toggle"><input id="toggle-points" type="checkbox"> Points</label>
           <button class="btn small" data-action="fit">Fit path</button>
         </div>
-        <div id="speed-legend"></div>
-        <div id="coords-display"></div>
+        <div id="speed-legend" data-no-i18n></div>
+        <div id="coords-display" data-no-i18n></div>
         <a id="github-link" href="https://github.com/itsneufox/neufox-rec-editor" target="_blank" rel="noopener noreferrer" title="GitHub">
           <svg viewBox="0 0 16 16" aria-hidden="true"><path fill="currentColor" d="M8 0C3.58 0 0 3.58 0 8a8 8 0 0 0 5.47 7.59c.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.5-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.01.08-2.1 0 0 .67-.21 2.2.82A7.6 7.6 0 0 1 8 4.86c.68 0 1.37.09 2.01.26 1.53-1.04 2.2-.82 2.2-.82.44 1.09.16 1.9.08 2.1.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8 8 0 0 0 16 8c0-4.42-3.58-8-8-8Z"/></svg>
           <span>GitHub</span>
@@ -73,21 +77,21 @@
           <button class="tab" data-tab="edit">Edit</button>
           <button class="tab" data-tab="tools">Tools</button>
           <button class="tab" data-tab="layers">Layers</button>
-          <button class="tab" data-tab="issues">Issues <span id="issue-badge" class="filter-badge hidden">0</span></button>
+          <button class="tab" data-tab="issues">Issues <span id="issue-badge" class="filter-badge hidden" data-no-i18n>0</span></button>
         </nav>
 
         <!-- Frame inspector -->
         <section class="pane active" data-pane="frame">
           <div class="frame-head">
-            <div class="frame-title">Frame <span id="frame-index" class="mono">–</span> <span class="muted">/ <span id="frame-count">–</span></span></div>
+            <div class="frame-title">Frame <span id="frame-index" class="mono" data-no-i18n>–</span> <span class="muted">/ <span id="frame-count" data-no-i18n>–</span></span></div>
             <div class="frame-nav">
               <button class="btn icon-btn" data-action="prev" title="Previous frame (←)">‹</button>
               <input id="frame-goto" class="num" type="number" min="0" placeholder="#">
               <button class="btn icon-btn" data-action="next" title="Next frame (→)">›</button>
             </div>
           </div>
-          <div id="stats" class="stats"></div>
-          <div id="inspector" class="inspector"></div>
+          <div id="stats" class="stats" data-no-i18n></div>
+          <div id="inspector" class="inspector" data-no-i18n></div>
           <div class="pane-actions">
             <button class="btn" data-action="copy-spawn" title="x, y, z, angle of this frame">Copy x, y, z, angle</button>
             <button class="btn" data-action="copy-pos">Copy NPC_SetPos</button>
@@ -98,7 +102,7 @@
         <section class="pane" data-pane="edit">
           <div class="group">
             <div class="group-title">Selection</div>
-            <div id="selection-info" class="sel-info">Nothing selected</div>
+            <div id="selection-info" class="sel-info" data-no-i18n></div>
             <div class="row">
               <button class="btn" data-action="mark-in" title="I">Set in</button>
               <button class="btn" data-action="mark-out" title="O">Set out</button>
@@ -155,7 +159,7 @@
           <div class="group">
             <div class="group-title">Set a field on the selection</div>
             <div class="row field-row">
-              <select id="setfield-name"></select>
+              <select id="setfield-name" data-no-i18n></select>
               <input id="setfield-value" class="num" type="number" step="any" value="0">
               <button class="btn" data-action="setfield">Apply</button>
             </div>
@@ -221,7 +225,7 @@
           <div class="group">
             <div class="group-title">Join</div>
             <div class="row field-row">
-              <select id="concat-source"></select>
+              <select id="concat-source" data-no-i18n></select>
               <input id="concat-gap" class="num" type="number" placeholder="gap ms" min="0" step="1">
               <button class="btn" data-action="concat">Append</button>
             </div>
@@ -231,13 +235,13 @@
 
         <!-- Layers -->
         <section class="pane" data-pane="layers">
-          <div id="layer-list" class="layer-list"></div>
-          <div id="seams" class="seams"></div>
+          <div id="layer-list" class="layer-list" data-no-i18n></div>
+          <div id="seams" class="seams" data-no-i18n></div>
         </section>
 
         <!-- Issues -->
         <section class="pane" data-pane="issues">
-          <div id="issue-list" class="issue-list"></div>
+          <div id="issue-list" class="issue-list" data-no-i18n></div>
         </section>
       </aside>
     </main>
@@ -254,18 +258,19 @@
         <select id="graph-kind" title="Graph">
           <option value="speed">Speed</option><option value="z">Height</option><option value="interval">Frame gap</option>
         </select>
-        <span id="tl-time" class="mono tl-time">0.0 s</span>
+        <span id="tl-time" class="mono tl-time" data-no-i18n>0.0 s</span>
         <button class="btn small" data-action="tl-fit" title="Show the whole recording">Fit</button>
       </div>
       <canvas id="tl-canvas"></canvas>
     </footer>
 
-    <div id="toast" class="hidden"></div>
+    <div id="toast" class="hidden" data-no-i18n></div>
     <div id="drop-overlay" class="hidden"><div>Drop to open</div></div>
   </div>
 
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script src="rec.js"></script>
+  <script src="i18n.js"></script>
   <script src="app.js"></script>
 </body>
 </html>
